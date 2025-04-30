@@ -49,17 +49,17 @@ class DashboardPage extends StatelessWidget {
                       ),
                       itemCount: state.cards.length,
                       itemBuilder: (context, index) {
+                        final card = state.cards[index];
                         return Dismissible(
-                          key: Key(state.cards[index].id),
+                          key: Key(card.id),
                           direction: DismissDirection.endToStart,
                           onDismissed: (direction) {
                             context
                                 .read<DashboardBloc>()
-                                .add(DeleteCard(state.cards[index].id));
+                                .add(DeleteCard(card.id));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                  content: Text(
-                                      '${state.cards[index].cardName} deleted')),
+                                  content: Text('${card.cardName} deleted')),
                             );
                           },
                           background: Container(
@@ -70,7 +70,17 @@ class DashboardPage extends StatelessWidget {
                             child:
                                 const Icon(Icons.delete, color: Colors.white),
                           ),
-                          child: LoyaltyCardWidget(card: state.cards[index]),
+                          child: LoyaltyCardWidget(
+                            card: card,
+                            onMarkUsed: (cardToUpdate, isUsed) {
+                              context.read<DashboardBloc>().add(
+                                    UpdateCardUsage(
+                                      cardId: cardToUpdate.id,
+                                      isUsed: isUsed,
+                                    ),
+                                  );
+                            },
+                          ),
                         );
                       },
                     ),
@@ -290,6 +300,7 @@ class DashboardPage extends StatelessWidget {
                             ? couponCodeController.text
                             : null,
                         imagePath: pickedImage?.path,
+                        isUsed: false, // Ensure new cards start as not used
                       );
                       context.read<DashboardBloc>().add(AddCard(newCard));
                       Navigator.of(context).pop();

@@ -26,3 +26,13 @@ class DeleteCard extends DashboardEvent {
   @override
   List<Object> get props => [cardId];
 }
+
+class UpdateCardUsage extends DashboardEvent {
+  final String cardId;
+  final bool isUsed;
+
+  const UpdateCardUsage({required this.cardId, required this.isUsed});
+
+  @override
+  List<Object> get props => [cardId, isUsed];
+}

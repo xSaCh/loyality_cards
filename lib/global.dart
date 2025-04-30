@@ -5,7 +5,7 @@ class Global {
   Global(this.loyaltyCardRepository);
 
   final LoyalityCardRepository loyaltyCardRepository;
-
+  bool isGuest = false;
   static Global? _ins;
   static Global get instance {
     return _ins!;

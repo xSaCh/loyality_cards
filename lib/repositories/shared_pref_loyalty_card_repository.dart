@@ -42,6 +42,24 @@ class SharedPrefLoyaltyCardRepo implements LoyalityCardRepository {
   }
 
   @override
+  Future<void> updateCard(LoyaltyCard card) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cards = await getCards();
+    final index = cards.indexWhere((c) => c.id == card.id);
+    if (index != -1) {
+      cards[index] = card; // Replace the old card with the updated one
+      final cardsJson = cards.map((c) => jsonEncode(c.toJson())).toList();
+      await prefs.setStringList(_cardsKey, cardsJson);
+    } else {
+      // Handle case where card to update is not found (optional)
+      print(
+          'Card with id ${card.id} not found for update in SharedPreferences.');
+      // Consider throwing an error if this case should not happen
+      // throw Exception('Card not found');
+    }
+  }
+
+  @override
   Future<void> clearAllCards() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cardsKey);

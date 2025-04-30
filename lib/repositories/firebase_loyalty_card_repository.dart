@@ -39,32 +39,46 @@ class FirebaseLoyaltyCardRepository implements LoyalityCardRepository {
       await _cardsCollection.doc(id).delete();
     } catch (e) {
       print('Error deleting card from Firestore: $e');
+      rethrow; // Rethrow to allow Bloc to handle error
     }
   }
 
   @override
   Future<List<LoyaltyCard>> getCards() async {
     try {
-      final querySnapshot =
+      // Try cache first
+      QuerySnapshot querySnapshot =
           await _cardsCollection.get(const GetOptions(source: Source.cache));
 
+      // If cache is empty or stale (you might add more sophisticated staleness checks),
+      // fetch from server.
       if (querySnapshot.docs.isEmpty) {
-        final serverSnapshot =
+        debugPrint("Cache empty or stale, fetching from server...");
+        querySnapshot =
             await _cardsCollection.get(const GetOptions(source: Source.server));
-        if (serverSnapshot.size == 0) return [];
-        return serverSnapshot.docs
-            .map((doc) =>
-                LoyaltyCard.fromJson(doc.data() as Map<String, dynamic>))
-            .toList();
+        if (querySnapshot.docs.isEmpty) return []; // No cards on server either
+        debugPrint("Fetched from SERVER: ${querySnapshot.size}");
+      } else {
+        debugPrint("Fetched from CACHE: ${querySnapshot.size}");
       }
-      debugPrint("FROM CACHE: ${querySnapshot.size}");
+
       return querySnapshot.docs
           .map(
               (doc) => LoyaltyCard.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
     } catch (e) {
       print('Error getting cards from Firestore: $e');
+      rethrow; // Rethrow to allow Bloc to handle error
     }
-    return [];
+  }
+
+  @override
+  Future<void> updateCard(LoyaltyCard card) async {
+    try {
+      await _cardsCollection.doc(card.id).update(card.toJson());
+    } catch (e) {
+      print('Error updating card in Firestore: $e');
+      rethrow; // Rethrow to allow Bloc to handle error
+    }
   }
 }

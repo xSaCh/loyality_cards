@@ -1,5 +1,6 @@
 import 'package:ext/firebase_options.dart';
 import 'package:ext/global.dart';
+import 'package:ext/models/loyalty_card.dart';
 import 'package:ext/repositories/firebase_loyalty_card_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +11,9 @@ import 'package:ext/repositories/shared_pref_loyalty_card_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Global.init(SharedPrefLoyaltyCardRepo());
-  Global.init(FirebaseLoyaltyCardRepository());
+  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Global.init(FirebaseLoyaltyCardRepository());
+  Global.init(SharedPrefLoyaltyCardRepo());
   // Global.instance.loyaltyCardRepository.clearAllCards();
   // for (var card in mockLoyaltyCards) {
   //   Global.instance.loyaltyCardRepository.addCard(card);
