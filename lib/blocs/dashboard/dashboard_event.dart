@@ -9,4 +9,20 @@ abstract class DashboardEvent extends Equatable {
 
 class LoadDashboard extends DashboardEvent {}
 
-class ReloadBashboard extends DashboardEvent {}
+class AddCard extends DashboardEvent {
+  final LoyaltyCard card;
+
+  const AddCard(this.card);
+
+  @override
+  List<Object> get props => [card];
+}
+
+class DeleteCard extends DashboardEvent {
+  final String cardId;
+
+  const DeleteCard(this.cardId);
+
+  @override
+  List<Object> get props => [cardId];
+}

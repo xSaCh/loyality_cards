@@ -13,12 +13,11 @@ class DashboardLoading extends DashboardState {}
 
 class DashboardLoaded extends DashboardState {
   final List<LoyaltyCard> cards;
-  final int totalCards;
 
-  const DashboardLoaded({required this.cards, required this.totalCards});
+  const DashboardLoaded({required this.cards});
 
   @override
-  List<Object> get props => [cards, totalCards];
+  List<Object> get props => [cards];
 }
 
 class DashboardError extends DashboardState {

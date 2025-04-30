@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "938180858905",
+    "project_id": "loyality-d5592",
+    "storage_bucket": "loyality-d5592.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938180858905:android:d37b37ef03eb48efc70688",
+        "android_client_info": {
+          "package_name": "com.example.ext"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCD2xWVlUOCKgWuH_xi4h9UwgKtoik_p0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

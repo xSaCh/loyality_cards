@@ -1,59 +1,57 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:ext/models/loyalty_card.dart'; // Adjust import path if needed
+import 'package:ext/global.dart';
+import 'package:ext/models/loyalty_card.dart';
+import 'package:ext/repositories/loyality_card_repository.dart';
 
 part 'dashboard_event.dart';
 part 'dashboard_state.dart';
 
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
-  DashboardBloc() : super(DashboardInitial()) {
+  final LoyalityCardRepository _loyaltyCardRepository;
+
+  DashboardBloc()
+      : _loyaltyCardRepository = Global.instance.loyaltyCardRepository,
+        super(DashboardInitial()) {
     on<LoadDashboard>(_onLoadDashboard);
+    on<AddCard>(_onAddCard);
+    on<DeleteCard>(_onDeleteCard);
   }
 
   Future<void> _onLoadDashboard(
-    LoadDashboard event,
-    Emitter<DashboardState> emit,
-  ) async {
+      LoadDashboard event, Emitter<DashboardState> emit) async {
     emit(DashboardLoading());
     try {
-      // Simulate fetching data
-      await Future.delayed(const Duration(seconds: 1));
-      final cards = _getMockLoyaltyCards();
-      emit(DashboardLoaded(cards: cards, totalCards: cards.length));
+      final cards = await _loyaltyCardRepository.getCards();
+      emit(DashboardLoaded(cards: cards));
     } catch (e) {
       emit(
           DashboardError(message: 'Failed to load dashboard: ${e.toString()}'));
     }
   }
 
-  // Replace with actual data fetching logic
-  List<LoyaltyCard> _getMockLoyaltyCards() {
-    return [
-      LoyaltyCard(
-        id: '1',
-        name: 'Coffee Stamp Card',
-        imageUrl: 'lib/assets/images/coffee_card.png', // Example asset path
-        expiryDate: DateTime.now().add(const Duration(days: 30)),
-      ),
-      LoyaltyCard(
-        id: '2',
-        name: 'Grocery Points',
-        imageUrl: 'lib/assets/images/grocery_card.png', // Example asset path
-        expiryDate: DateTime.now().add(const Duration(days: 90)),
-      ),
-      LoyaltyCard(
-        id: '3',
-        name: 'Bookstore Discount',
-        imageUrl: 'lib/assets/images/book_card.png', // Example asset path
-        expiryDate: DateTime.now().add(const Duration(days: 15)),
-      ),
-      LoyaltyCard(
-        id: '4',
-        name: 'Expired Card',
-        imageUrl: 'lib/assets/images/book_card.png', // Example asset path
-        expiryDate: DateTime.now().subtract(const Duration(days: 5)),
-      ),
-      // Add more mock cards as needed
-    ];
+  Future<void> _onAddCard(AddCard event, Emitter<DashboardState> emit) async {
+    try {
+      await _loyaltyCardRepository.addCard(event.card);
+      add(LoadDashboard());
+    } catch (e) {
+      emit(DashboardError(message: 'Failed to add card: ${e.toString()}'));
+      if (state is DashboardLoaded) {
+        emit(DashboardLoaded(cards: (state as DashboardLoaded).cards));
+      }
+    }
+  }
+
+  Future<void> _onDeleteCard(
+      DeleteCard event, Emitter<DashboardState> emit) async {
+    try {
+      await _loyaltyCardRepository.deleteCard(event.cardId);
+      add(LoadDashboard());
+    } catch (e) {
+      emit(DashboardError(message: 'Failed to delete card: ${e.toString()}'));
+      if (state is DashboardLoaded) {
+        emit(DashboardLoaded(cards: (state as DashboardLoaded).cards));
+      }
+    }
   }
 }
