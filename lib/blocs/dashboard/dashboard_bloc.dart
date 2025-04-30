@@ -16,15 +16,38 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<LoadDashboard>(_onLoadDashboard);
     on<AddCard>(_onAddCard);
     on<DeleteCard>(_onDeleteCard);
-    on<UpdateCardUsage>(_onUpdateCardUsage); // Register the new event handler
+    on<UpdateCardUsage>(_onUpdateCardUsage);
+    on<FilterCards>(_onFilterCards); // Register the filter event handler
+  }
+
+  List<LoyaltyCard> _filterCards(
+      List<LoyaltyCard> cards, CardFilterType filter) {
+    final now = DateTime.now();
+    switch (filter) {
+      case CardFilterType.used:
+        return cards.where((card) => card.isUsed).toList();
+      case CardFilterType.expired:
+        return cards.where((card) => card.expiryDate.isBefore(now)).toList();
+      case CardFilterType.active:
+        return cards
+            .where((card) => !card.isUsed && card.expiryDate.isAfter(now))
+            .toList();
+      case CardFilterType.all:
+      default:
+        return cards;
+    }
   }
 
   Future<void> _onLoadDashboard(
       LoadDashboard event, Emitter<DashboardState> emit) async {
     emit(DashboardLoading());
     try {
-      final cards = await _loyaltyCardRepository.getCards();
-      emit(DashboardLoaded(cards: cards));
+      final allCards = await _loyaltyCardRepository.getCards();
+      final filteredCards = _filterCards(allCards, CardFilterType.active);
+      emit(DashboardLoaded(
+          allCards: allCards,
+          filteredCards: filteredCards,
+          filter: CardFilterType.active));
     } catch (e) {
       emit(
           DashboardError(message: 'Failed to load dashboard: ${e.toString()}'));
@@ -33,42 +56,53 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   Future<void> _onAddCard(AddCard event, Emitter<DashboardState> emit) async {
     final currentState = state;
-    try {
-      await _loyaltyCardRepository.addCard(event.card);
-      // Optimistically update UI before reloading
-      if (currentState is DashboardLoaded) {
-        final updatedCards = List<LoyaltyCard>.from(currentState.cards)
+    if (currentState is DashboardLoaded) {
+      try {
+        await _loyaltyCardRepository.addCard(event.card);
+        final updatedAllCards = List<LoyaltyCard>.from(currentState.allCards)
           ..add(event.card);
-        emit(DashboardLoaded(cards: updatedCards));
-      } else {
-        add(LoadDashboard()); // Reload if not already loaded
+        final updatedFilteredCards =
+            _filterCards(updatedAllCards, currentState.currentFilter);
+        emit(currentState.copyWith(
+          allCards: updatedAllCards,
+          filteredCards: updatedFilteredCards,
+        ));
+      } catch (e) {
+        emit(DashboardError(
+            message: 'Failed to add card: ${e.toString()}',
+            filter: currentState.currentFilter));
+        // Optionally revert, though BLoC usually handles state rollback implicitly if needed
       }
-    } catch (e) {
-      emit(DashboardError(message: 'Failed to add card: ${e.toString()}'));
-      // Revert to previous state on error if needed
-      if (currentState is DashboardLoaded) {
-        emit(DashboardLoaded(cards: currentState.cards));
-      }
+    } else {
+      // If state is not loaded, adding a card might imply reloading
+      add(LoadDashboard());
     }
   }
 
   Future<void> _onDeleteCard(
       DeleteCard event, Emitter<DashboardState> emit) async {
     final currentState = state;
-    try {
+    if (currentState is DashboardLoaded) {
       // Optimistically update UI
-      if (currentState is DashboardLoaded) {
-        final updatedCards = currentState.cards
-            .where((card) => card.id != event.cardId)
-            .toList();
-        emit(DashboardLoaded(cards: updatedCards));
-      }
-      await _loyaltyCardRepository.deleteCard(event.cardId);
-    } catch (e) {
-      emit(DashboardError(message: 'Failed to delete card: ${e.toString()}'));
-      // Revert to previous state on error
-      if (currentState is DashboardLoaded) {
-        emit(DashboardLoaded(cards: currentState.cards));
+      final updatedAllCards = currentState.allCards
+          .where((card) => card.id != event.cardId)
+          .toList();
+      final updatedFilteredCards =
+          _filterCards(updatedAllCards, currentState.currentFilter);
+      emit(currentState.copyWith(
+        allCards: updatedAllCards,
+        filteredCards: updatedFilteredCards,
+      ));
+
+      try {
+        await _loyaltyCardRepository.deleteCard(event.cardId);
+        // State is already updated optimistically
+      } catch (e) {
+        emit(DashboardError(
+            message: 'Failed to delete card: ${e.toString()}',
+            filter: currentState.currentFilter));
+        // Revert optimistic update on error
+        emit(currentState); // Re-emit previous loaded state
       }
     }
   }
@@ -77,32 +111,48 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       UpdateCardUsage event, Emitter<DashboardState> emit) async {
     final currentState = state;
     if (currentState is DashboardLoaded) {
-      try {
-        // Find the card to update
-        final cardIndex =
-            currentState.cards.indexWhere((card) => card.id == event.cardId);
-        if (cardIndex != -1) {
-          final cardToUpdate = currentState.cards[cardIndex];
-          final updatedCard = cardToUpdate.copyWith(isUsed: event.isUsed);
+      final cardIndex =
+          currentState.allCards.indexWhere((card) => card.id == event.cardId);
+      if (cardIndex != -1) {
+        final cardToUpdate = currentState.allCards[cardIndex];
+        final updatedCard = cardToUpdate.copyWith(isUsed: event.isUsed);
 
-          // Optimistically update the state
-          final updatedCards = List<LoyaltyCard>.from(currentState.cards);
-          updatedCards[cardIndex] = updatedCard;
-          emit(DashboardLoaded(cards: updatedCards));
+        // Optimistically update the state
+        final updatedAllCards = List<LoyaltyCard>.from(currentState.allCards);
+        updatedAllCards[cardIndex] = updatedCard;
+        final updatedFilteredCards =
+            _filterCards(updatedAllCards, currentState.currentFilter);
+        emit(currentState.copyWith(
+          allCards: updatedAllCards,
+          filteredCards: updatedFilteredCards,
+        ));
 
+        try {
           // Persist the change
           await _loyaltyCardRepository.updateCard(updatedCard);
-        } else {
-          emit(DashboardError(message: 'Card not found for update.'));
-          emit(DashboardLoaded(
-              cards: currentState.cards)); // Re-emit current state
+        } catch (e) {
+          emit(DashboardError(
+              message: 'Failed to update card usage: ${e.toString()}',
+              filter: currentState.currentFilter));
+          // Revert optimistic update on error
+          emit(currentState); // Re-emit previous loaded state
         }
-      } catch (e) {
+      } else {
         emit(DashboardError(
-            message: 'Failed to update card usage: ${e.toString()}'));
-        // Revert optimistic update on error
-        emit(DashboardLoaded(cards: currentState.cards));
+            message: 'Card not found for update.',
+            filter: currentState.currentFilter));
       }
     }
+  }
+
+  void _onFilterCards(FilterCards event, Emitter<DashboardState> emit) {
+    final currentState = state;
+    if (currentState is DashboardLoaded) {
+      final filteredCards = _filterCards(currentState.allCards, event.filter);
+      emit(currentState.copyWith(
+          filteredCards: filteredCards, filter: event.filter));
+    }
+    // If state is not DashboardLoaded, filtering doesn't apply yet.
+    // Could potentially store the filter request and apply it upon loading.
   }
 }

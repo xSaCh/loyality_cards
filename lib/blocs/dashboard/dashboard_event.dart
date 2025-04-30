@@ -1,6 +1,8 @@
 part of 'dashboard_bloc.dart';
 
-abstract class DashboardEvent extends Equatable {
+enum CardFilterType { all, used, expired, active }
+
+sealed class DashboardEvent extends Equatable {
   const DashboardEvent();
 
   @override
@@ -35,4 +37,13 @@ class UpdateCardUsage extends DashboardEvent {
 
   @override
   List<Object> get props => [cardId, isUsed];
+}
+
+class FilterCards extends DashboardEvent {
+  final CardFilterType filter;
+
+  const FilterCards(this.filter);
+
+  @override
+  List<Object> get props => [filter];
 }
